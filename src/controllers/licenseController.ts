@@ -6,40 +6,61 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
   try {
     const userId = req.params.userId;
     const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || 'unknown';
-    
+
     if (!userId) {
       res.status(400).json({ error: 'Missing USER_ID' });
       return;
     }
 
     let license = await License.findOne({ userId });
-    
+
     if (!license) {
       license = new License({
         userId,
-        servers: [ip],
-        requestCount: 1
+        status: 'Normal',
+        totalRequests: 1,
+        requestCounts: {
+          [ip]: { count: 1, lastSeen: new Date() }
+        },
+        requests: [{
+          ip,
+          timestamp: new Date()
+        }]
       });
     } else {
-      license.requestCount += 1;
-      if (!license.servers.includes(ip)) {
-        license.servers.push(ip);
+      // Update total request count
+      license.totalRequests += 1;
+
+      // Update requestCounts map
+      if (!license.requestCounts[ip]) {
+        license.requestCounts[ip] = {
+          count: 1,
+          lastSeen: new Date()
+        };
+      } else {
+        license.requestCounts[ip].count += 1;
+        license.requestCounts[ip].lastSeen = new Date();
       }
+
+      // Log request (optional, can be limited for cleanup)
+      license.requests.push({
+        ip,
+        timestamp: new Date()
+      });
     }
 
     await license.save();
-    
-    res.status(200).json({
-  message: 'License ping tracked',
-  userId,
-  ip,
-  totalRequests: license.requestCount,
-  uniqueServers: license.servers.length,
-  status: license.status // ✅ include status
-});
 
+    res.status(200).json({
+      message: '✅ License ping successful',
+      userId,
+      ip,
+      totalRequests: license.totalRequests,
+      ipRequestCount: license.requestCounts[ip]?.count || 1,
+      status: license.status
+    });
   } catch (err) {
     console.error('License tracking error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: '❌ Server error while tracking license' });
   }
 };
