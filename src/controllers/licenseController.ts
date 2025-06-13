@@ -49,6 +49,7 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
 
       // Force mongoose to detect array update
       license.markModified('requests');
+      license.markModified(`requestCounts.${ip}`);
     }
 
     await license.save();
