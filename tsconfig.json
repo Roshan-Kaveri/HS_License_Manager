@@ -1,0 +1,17 @@
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES6",                          // Modern JavaScript
+    "module": "commonjs",                     // For Node.js
+    "rootDir": "./src",                       // Source files
+    "outDir": "./dist",                       // Compiled files
+    "strict": true,                           // Enables all strict type-checking
+    "esModuleInterop": true,                  // For import compatibility
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": ["node"],                        // 👈 Add this so Node globals like `process` work
+    "typeRoots": ["./node_modules/@types"]    // Where types live
+  },
+  "include": ["src"],                         // Only compile source files
+  "exclude": ["node_modules", "dist"]
+}
