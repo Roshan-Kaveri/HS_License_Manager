@@ -4,13 +4,14 @@ import License from '../models/License';
 
 export const handleLicensePing = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.params.userId;
-    const project = req.query.project?.toString(); // or req.params.project if route is structured that way
-
+    const { userId, project } = req.params;
+   
+ 
     const rawIP = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || 'unknown';
     const ip = rawIP.replace(/\./g, '_');
 
     if (!userId || !project) {
+      console.log(req.params);
       res.status(400).json({ error: 'Missing userId or project' });
       return;
     }
