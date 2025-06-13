@@ -5,13 +5,12 @@ import License from '../models/License';
 export const handleLicensePing = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, project } = req.params;
-   
- 
+
     const rawIP = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || 'unknown';
-    const ip = rawIP.replace(/\./g, '_');
+    const ip = rawIP.replace(/[.:]/g, '_'); // IPv4 and IPv6 safe
 
     if (!userId || !project) {
-      console.log(req.params);
+      console.log('Missing params:', req.params);
       res.status(400).json({ error: 'Missing userId or project' });
       return;
     }
@@ -40,10 +39,16 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
         license.requestCounts[ip].lastSeen = new Date();
       }
 
+      // Push new request
       license.requests.push({ ip, timestamp: new Date() });
+
+      // Keep only the last 1000 requests
       if (license.requests.length > 1000) {
-        license.requests.shift();
+        license.requests.splice(0, license.requests.length - 1000);
       }
+
+      // Force mongoose to detect array update
+      license.markModified('requests');
     }
 
     await license.save();
@@ -52,7 +57,7 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
       message: '✅ License ping successful',
       userId,
       project,
-      ip: rawIP, // original IP returned
+      ip: rawIP,
       totalRequests: license.totalRequests,
       ipRequestCount: license.requestCounts[ip]?.count || 1,
       status: license.status
