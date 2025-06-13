@@ -10,16 +10,28 @@ interface RequestLog {
   timestamp: Date;
 }
 
-interface LicenseDocument extends Document {
+export interface LicenseDocument extends Document {
   userId: string;
+  project: string;
   status: 'Normal' | 'Restricted' | 'Terminated';
   totalRequests: number;
   requestCounts: Record<string, RequestMeta>; // per IP
   requests: RequestLog[];
 }
 
+const RequestMetaSchema = new mongoose.Schema<RequestMeta>({
+  count: { type: Number, default: 1 },
+  lastSeen: { type: Date, required: true },
+}, { _id: false });
+
+const RequestLogSchema = new mongoose.Schema<RequestLog>({
+  ip: { type: String, required: true },
+  timestamp: { type: Date, required: true }
+}, { _id: false });
+
 const LicenseSchema = new mongoose.Schema<LicenseDocument>({
-  userId: { type: String, required: true, unique: true },
+  userId: { type: String, required: true },
+  project: { type: String, required: true },
   status: {
     type: String,
     enum: ['Normal', 'Restricted', 'Terminated'],
@@ -28,19 +40,17 @@ const LicenseSchema = new mongoose.Schema<LicenseDocument>({
   totalRequests: { type: Number, default: 0 },
   requestCounts: {
     type: Map,
-    of: new mongoose.Schema<RequestMeta>({
-      count: { type: Number, default: 0 },
-      lastSeen: { type: Date, required: true },
-    }),
+    of: RequestMetaSchema,
     default: {}
   },
-  requests: [{
-    ip: { type: String, required: true },
-    timestamp: { type: Date, required: true }
-  }]
+  requests: {
+    type: [RequestLogSchema],
+    default: []
+  }
 });
 
-LicenseSchema.index({ userId: 1 });
+// Ensure uniqueness of user + project combo
+LicenseSchema.index({ userId: 1, project: 1 }, { unique: true });
 
 const License: Model<LicenseDocument> = mongoose.model<LicenseDocument>('License', LicenseSchema);
 

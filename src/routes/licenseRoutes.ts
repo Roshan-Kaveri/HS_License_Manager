@@ -4,6 +4,6 @@ import { handleLicensePing } from '../controllers/licenseController';
 
 const router = Router();
 
-router.get('/license/:userId', handleLicensePing);
+router.get('/license/:project/:userId', handleLicensePing);
 
 export default router;
