@@ -15,7 +15,7 @@ export interface LicenseDocument extends Document {
   project: string;
   status: 'Normal' | 'Restricted' | 'Terminated';
   totalRequests: number;
-  requestCounts: Record<string, RequestMeta>; // per IP
+  requestCounts: Record<string, RequestMeta>; // use plain object
   requests: RequestLog[];
 }
 
@@ -39,8 +39,7 @@ const LicenseSchema = new mongoose.Schema<LicenseDocument>({
   },
   totalRequests: { type: Number, default: 0 },
   requestCounts: {
-    type: Map,
-    of: RequestMetaSchema,
+    type: Object, // ✅ fixed: plain object instead of Map
     default: {}
   },
   requests: {
@@ -49,7 +48,6 @@ const LicenseSchema = new mongoose.Schema<LicenseDocument>({
   }
 });
 
-// Ensure uniqueness of user + project combo
 LicenseSchema.index({ userId: 1, project: 1 }, { unique: true });
 
 const License: Model<LicenseDocument> = mongoose.model<LicenseDocument>('License', LicenseSchema);

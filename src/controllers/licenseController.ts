@@ -1,4 +1,3 @@
-// src/controllers/licenseController.ts
 import { Request, Response } from 'express';
 import License from '../models/License';
 
@@ -7,7 +6,7 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
     const { userId, project } = req.params;
 
     const rawIP = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || 'unknown';
-    const ip = rawIP.replace(/[.:]/g, '_'); // IPv4 and IPv6 safe
+    const ip = rawIP.replace(/[.:]/g, '_'); // sanitize IPv4 and IPv6
 
     if (!userId || !project) {
       console.log('Missing params:', req.params);
@@ -16,6 +15,7 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
     }
 
     let license = await License.findOne({ userId, project });
+    const now = new Date();
 
     if (!license) {
       license = new License({
@@ -24,32 +24,28 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
         status: 'Normal',
         totalRequests: 1,
         requestCounts: {
-          [ip]: { count: 1, lastSeen: new Date() }
+          [ip]: { count: 1, lastSeen: now }
         },
-        requests: [{ ip, timestamp: new Date() }]
+        requests: [{ ip, timestamp: now }]
       });
     } else {
       license.totalRequests += 1;
 
       license.requestCounts ??= {};
-      if (!license.requestCounts[ip]) {
-        license.requestCounts[ip] = { count: 1, lastSeen: new Date() };
-      } else {
-        license.requestCounts[ip].count += 1;
-        license.requestCounts[ip].lastSeen = new Date();
-      }
+      license.requestCounts[ip] ??= { count: 0, lastSeen: now };
 
-      // Push new request
-      license.requests.push({ ip, timestamp: new Date() });
+      license.requestCounts[ip].count += 1;
+      license.requestCounts[ip].lastSeen = now;
 
-      // Keep only the last 1000 requests
+      license.requests.push({ ip, timestamp: now });
+
       if (license.requests.length > 1000) {
         license.requests.splice(0, license.requests.length - 1000);
       }
 
-      // Force mongoose to detect array update
+      // ✅ tell mongoose to track both objects properly
+      license.markModified('requestCounts');
       license.markModified('requests');
-      license.markModified(`requestCounts.${ip}`);
     }
 
     await license.save();
@@ -60,7 +56,7 @@ export const handleLicensePing = async (req: Request, res: Response): Promise<vo
       project,
       ip: rawIP,
       totalRequests: license.totalRequests,
-      ipRequestCount: license.requestCounts[ip]?.count || 1,
+      ipRequestCount: license.requestCounts[ip].count,
       status: license.status
     });
 
