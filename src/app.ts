@@ -4,6 +4,8 @@ import licenseRoutes from './routes/licenseRoutes';
 
 const app = express();
 
+app.set('trust proxy', true);
+
 app.use(express.json());
 app.use('/api', licenseRoutes); 
 
